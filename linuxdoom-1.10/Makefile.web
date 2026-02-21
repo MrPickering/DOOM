@@ -21,7 +21,7 @@ CFLAGS = -O2 -DNORMALUNIX -s USE_SDL=2 \
 LDFLAGS = -s USE_SDL=2 \
           -s ALLOW_MEMORY_GROWTH=1 \
           -s TOTAL_MEMORY=33554432 \
-          -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","FS"]' \
+          -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","FS","ENV","callMain"]' \
           -s EXPORTED_FUNCTIONS='["_main","_doom_key_down","_doom_key_up"]' \
           -s NO_EXIT_RUNTIME=1 \
           -s ASYNCIFY=0 \

@@ -513,6 +513,14 @@ var Module = {
   }
 };
 
+function showError(msg) {
+  var el = document.getElementById('loading-text');
+  if (el) el.textContent = 'ERROR: ' + msg;
+  var st = document.getElementById('status');
+  if (st) { st.textContent = msg; st.style.color = '#f44'; }
+  console.error('DOOM:', msg);
+}
+
 function startDoom() {
   if (!window.wadData) return;
 
@@ -522,22 +530,31 @@ function startDoom() {
     return;
   }
 
-  // Write WAD directly to Emscripten virtual filesystem (FS is already initialized)
-  var dir = '/';
-  FS.writeFile(dir + window.wadFileName, window.wadData);
+  try {
+    // Write WAD directly to Emscripten virtual filesystem (FS is already initialized)
+    var dir = '/';
+    if (typeof FS === 'undefined') { showError('FS not available'); return; }
+    FS.writeFile(dir + window.wadFileName, window.wadData);
 
-  // Set environment variables
-  ENV['HOME'] = '/home/web_user';
-  ENV['DOOMWADDIR'] = dir;
+    // Set environment variables
+    if (typeof ENV !== 'undefined') {
+      ENV['HOME'] = '/home/web_user';
+      ENV['DOOMWADDIR'] = dir;
+    } else {
+      showError('ENV not available'); return;
+    }
 
-  // Create home directory for config
-  try { FS.mkdir('/home'); } catch(e) {}
-  try { FS.mkdir('/home/web_user'); } catch(e) {}
+    // Create home directory for config
+    try { FS.mkdir('/home'); } catch(e) {}
+    try { FS.mkdir('/home/web_user'); } catch(e) {}
+  } catch(e) {
+    showError('FS setup failed: ' + e.message); return;
+  }
 
   document.getElementById('loading-bar').style.width = '90%';
   document.getElementById('loading-text').textContent = 'Launching DOOM...';
 
-  // Switch to game screen
+  // Switch to game screen and start engine
   setTimeout(function() {
     document.getElementById('loading-bar').style.width = '100%';
     document.getElementById('upload-screen').style.display = 'none';
@@ -548,7 +565,18 @@ function startDoom() {
     document.getElementById('canvas').focus();
 
     // Start the game
-    Module.callMain(['-window']);
+    try {
+      if (typeof Module.callMain !== 'function') {
+        showError('callMain not available (type: ' + typeof Module.callMain + ')');
+        return;
+      }
+      Module.callMain([]);
+    } catch(e) {
+      // emscripten_set_main_loop throws 'unwind' to simulate infinite loop — that's OK
+      if (e !== 'unwind' && e.message !== 'unreachable') {
+        showError('callMain failed: ' + e.message);
+      }
+    }
   }, 200);
 }
 
