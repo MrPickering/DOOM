@@ -1,5 +1,5 @@
 {
-  "buildCommand": "cd linuxdoom-1.10 && emmake make -f Makefile.web",
+  "buildCommand": "chmod +x build-web.sh && ./build-web.sh",
   "outputDirectory": "linuxdoom-1.10/web",
   "framework": null,
   "headers": [
