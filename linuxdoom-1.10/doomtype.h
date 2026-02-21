@@ -28,9 +28,15 @@
 #ifndef __BYTEBOOL__
 #define __BYTEBOOL__
 // Fixed to use builtin bool type with C++.
+// Emscripten's SDL2 pulls in <stdbool.h> which #defines true/false,
+// so we must undef them before declaring the enum, then restore.
 #ifdef __cplusplus
 typedef bool boolean;
 #else
+#ifdef true
+#undef true
+#undef false
+#endif
 typedef enum {false, true} boolean;
 #endif
 typedef unsigned char byte;
