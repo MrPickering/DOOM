@@ -486,6 +486,8 @@ function tryFetchSharewareWAD() {
 tryFetchSharewareWAD();
 
 // ─── Emscripten Module ───
+var runtimeReady = false;
+
 var Module = {
   preRun: [],
   postRun: [],
@@ -499,51 +501,55 @@ var Module = {
     if (text) {
       document.getElementById('loading-text').textContent = text;
     }
+  },
+
+  onRuntimeInitialized: function() {
+    runtimeReady = true;
+    console.log('Emscripten runtime ready');
+    // If WAD was already loaded (e.g. from auto-fetch), start now
+    if (window.wadData) {
+      startDoom();
+    }
   }
 };
 
 function startDoom() {
   if (!window.wadData) return;
 
-  // Write WAD to virtual filesystem
-  Module.preRun.push(function() {
-    var dir = '/';
-    FS.writeFile(dir + window.wadFileName, window.wadData);
-
-    // Set environment variables
-    ENV['HOME'] = '/home/web_user';
-    ENV['DOOMWADDIR'] = dir;
-
-    // Create home directory for config
-    try { FS.mkdir('/home'); } catch(e) {}
-    try { FS.mkdir('/home/web_user'); } catch(e) {}
-  });
-
-  document.getElementById('loading-bar').style.width = '70%';
-
-  // Set up argv
-  Module.arguments = ['-window'];
-
-  // Show game screen
-  Module.postRun.push(function() {
-    document.getElementById('loading-bar').style.width = '100%';
-    setTimeout(function() {
-      document.getElementById('upload-screen').style.display = 'none';
-      document.getElementById('game-screen').style.display = 'block';
-      if (isTouchDevice()) {
-        document.getElementById('touch-controls').style.display = 'block';
-      }
-      document.getElementById('canvas').focus();
-    }, 200);
-  });
-
-  // Start
-  Module.callMain = Module.callMain || function() {};
-
-  // The emscripten-generated code will handle calling main
-  if (typeof Module['_main'] === 'function') {
-    Module.callMain(Module.arguments);
+  if (!runtimeReady) {
+    // WASM not loaded yet — will be called from onRuntimeInitialized
+    document.getElementById('loading-text').textContent = 'Waiting for DOOM engine...';
+    return;
   }
+
+  // Write WAD directly to Emscripten virtual filesystem (FS is already initialized)
+  var dir = '/';
+  FS.writeFile(dir + window.wadFileName, window.wadData);
+
+  // Set environment variables
+  ENV['HOME'] = '/home/web_user';
+  ENV['DOOMWADDIR'] = dir;
+
+  // Create home directory for config
+  try { FS.mkdir('/home'); } catch(e) {}
+  try { FS.mkdir('/home/web_user'); } catch(e) {}
+
+  document.getElementById('loading-bar').style.width = '90%';
+  document.getElementById('loading-text').textContent = 'Launching DOOM...';
+
+  // Switch to game screen
+  setTimeout(function() {
+    document.getElementById('loading-bar').style.width = '100%';
+    document.getElementById('upload-screen').style.display = 'none';
+    document.getElementById('game-screen').style.display = 'block';
+    if (isTouchDevice()) {
+      document.getElementById('touch-controls').style.display = 'block';
+    }
+    document.getElementById('canvas').focus();
+
+    // Start the game
+    Module.callMain(['-window']);
+  }, 200);
 }
 
 // ─── Touch Controls ───
