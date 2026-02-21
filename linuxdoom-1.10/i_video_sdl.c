@@ -228,8 +228,7 @@ void I_InitGraphics(void)
         I_Error("Could not create SDL texture: %s", SDL_GetError());
 
     framebuffer = (Uint32*)malloc(SCREENWIDTH * SCREENHEIGHT * sizeof(Uint32));
-    screens[0] = (unsigned char*)malloc(SCREENWIDTH * SCREENHEIGHT);
-    memset(screens[0], 0, SCREENWIDTH * SCREENHEIGHT);
+    // Note: screens[0] is already allocated by V_Init() — do NOT re-allocate here
 }
 
 

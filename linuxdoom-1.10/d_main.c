@@ -1192,5 +1192,12 @@ void D_DoomMain (void)
 
     }
 
+#ifdef __EMSCRIPTEN__
+    // Emscripten: use single-tic mode to avoid TryRunTics() network
+    // synchronization stalls. The browser drives the frame loop via
+    // requestAnimationFrame, so adaptive timing is not needed.
+    singletics = true;
+#endif
+
     D_DoomLoop ();  // never returns
 }
