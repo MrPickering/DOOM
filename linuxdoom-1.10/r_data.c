@@ -41,8 +41,10 @@ rcsid[] = "$Id: r_data.c,v 1.4 1997/02/03 16:47:55 b1 Exp $";
 #include "doomstat.h"
 #include "r_sky.h"
 
-#ifdef LINUX
-#include  <alloca.h>
+#ifdef __EMSCRIPTEN__
+#include <stdlib.h>
+#elif defined(LINUX)
+#include <alloca.h>
 #endif
 
 
