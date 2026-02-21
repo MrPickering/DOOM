@@ -312,6 +312,9 @@ canvas#canvas {
     <div id="loading-bar-outer"><div id="loading-bar"></div></div>
     <div id="loading-text">Initializing DOOM engine...</div>
   </div>
+  <div id="shareware-hint" style="margin-top:20px;color:#555;font-size:0.8rem;">
+    Place <code style="color:#888">doom1.wad</code> next to this page for auto-start
+  </div>
 </div>
 
 <!-- Game Screen -->
@@ -375,6 +378,7 @@ var KEY = {
 var dropZone = document.getElementById('drop-zone');
 var wadInput = document.getElementById('wad-input');
 var statusEl = document.getElementById('status');
+var hintEl = document.getElementById('shareware-hint');
 
 dropZone.addEventListener('click', function() { wadInput.click(); });
 
@@ -407,6 +411,7 @@ function loadWAD(file) {
   statusEl.textContent = 'Reading ' + file.name + '...';
   document.getElementById('loading').style.display = 'block';
   document.getElementById('loading-bar').style.width = '20%';
+  hintEl.style.display = 'none';
 
   var reader = new FileReader();
   reader.onload = function(e) {
@@ -421,6 +426,64 @@ function loadWAD(file) {
   };
   reader.readAsArrayBuffer(file);
 }
+
+// ─── Auto-fetch shareware WAD ───
+function tryFetchSharewareWAD() {
+  statusEl.textContent = 'Looking for shareware WAD...';
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('loading-bar').style.width = '10%';
+
+  fetch('doom1.wad').then(function(resp) {
+    if (!resp.ok) throw new Error('not found');
+    var total = parseInt(resp.headers.get('content-length') || '0', 10);
+    var reader = resp.body.getReader();
+    var chunks = [];
+    var loaded = 0;
+
+    function read() {
+      return reader.read().then(function(result) {
+        if (result.done) {
+          var data = new Uint8Array(loaded);
+          var offset = 0;
+          for (var i = 0; i < chunks.length; i++) {
+            data.set(chunks[i], offset);
+            offset += chunks[i].length;
+          }
+          // Verify it looks like a WAD file
+          if (loaded > 4 && String.fromCharCode(data[0],data[1],data[2],data[3]) === 'IWAD') {
+            document.getElementById('loading-bar').style.width = '50%';
+            document.getElementById('loading-text').textContent = 'Starting DOOM engine...';
+            window.wadData = data;
+            window.wadFileName = 'doom1.wad';
+            hintEl.style.display = 'none';
+            startDoom();
+          } else {
+            throw new Error('invalid WAD');
+          }
+          return;
+        }
+        chunks.push(result.value);
+        loaded += result.value.length;
+        if (total > 0) {
+          var pct = Math.min(40, Math.round((loaded / total) * 40)) + 10;
+          document.getElementById('loading-bar').style.width = pct + '%';
+        }
+        document.getElementById('loading-text').textContent =
+          'Downloading doom1.wad... ' + (loaded / 1024 | 0) + ' KB';
+        return read();
+      });
+    }
+    return read();
+  }).catch(function() {
+    // No bundled WAD — show upload UI
+    statusEl.textContent = '';
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('loading-bar').style.width = '0%';
+  });
+}
+
+// Try auto-fetch when the page loads
+tryFetchSharewareWAD();
 
 // ─── Emscripten Module ───
 var Module = {

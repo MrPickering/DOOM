@@ -106,7 +106,21 @@ $(O)/index.html: $(OBJS) $(O)/i_main.o
 clean:
 	rm -rf $(O)
 
+# Copy shareware WAD into web output if available.
+# Users can place doom1.wad in the source dir or web/ dir.
+# The page auto-fetches doom1.wad from the same directory.
+bundle-wad: $(O)
+	@if [ -f doom1.wad ]; then \
+		cp doom1.wad $(O)/doom1.wad; \
+		echo "Bundled doom1.wad into $(O)/"; \
+	elif [ -f $(O)/doom1.wad ]; then \
+		echo "doom1.wad already in $(O)/"; \
+	else \
+		echo "No doom1.wad found — users will need to upload a WAD file."; \
+		echo "Get the shareware WAD from https://www.doomworld.com/classicdoom/info/shareware.php"; \
+	fi
+
 $(O)/%.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
 
-.PHONY: all clean
+.PHONY: all clean bundle-wad
