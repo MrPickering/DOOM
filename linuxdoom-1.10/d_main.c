@@ -40,6 +40,9 @@ static const char rcsid[] = "$Id: d_main.c,v 1.8 1997/02/03 22:45:09 b1 Exp $";
 #include <fcntl.h>
 #endif
 
+#ifdef __EMSCRIPTEN__
+#include <emscripten.h>
+#endif
 
 #include "doomdef.h"
 #include "doomstat.h"
@@ -322,7 +325,12 @@ void D_Display (void)
 	I_FinishUpdate ();              // page flip or blit buffer
 	return;
     }
-    
+
+#ifdef __EMSCRIPTEN__
+    // Skip blocking wipe animation on web — just show the new frame
+    wipegamestate = gamestate;
+    I_FinishUpdate ();
+#else
     // wipe update
     wipe_EndScreen(0, 0, SCREENWIDTH, SCREENHEIGHT);
 
@@ -342,6 +350,7 @@ void D_Display (void)
 	M_Drawer ();                            // menu is drawn even on top of wipes
 	I_FinishUpdate ();                      // page flip or blit buffer
     } while (!done);
+#endif
 }
 
 
@@ -351,11 +360,50 @@ void D_Display (void)
 //
 extern  boolean         demorecording;
 
+void D_DoomFrame (void)
+{
+    // frame syncronous IO operations
+    I_StartFrame ();
+
+    // process one or more tics
+    if (singletics)
+    {
+	I_StartTic ();
+	D_ProcessEvents ();
+	G_BuildTiccmd (&netcmds[consoleplayer][maketic%BACKUPTICS]);
+	if (advancedemo)
+	    D_DoAdvanceDemo ();
+	M_Ticker ();
+	G_Ticker ();
+	gametic++;
+	maketic++;
+    }
+    else
+    {
+	TryRunTics (); // will run at least one tic
+    }
+
+    S_UpdateSounds (players[consoleplayer].mo);// move positional sounds
+
+    // Update display, next frame, with current state.
+    D_Display ();
+
+#ifndef SNDSERV
+    // Sound mixing for the buffer is snychronous.
+    I_UpdateSound();
+#endif
+    // Synchronous sound output is explicitly called.
+#ifndef SNDINTR
+    // Update sound output.
+    I_SubmitSound();
+#endif
+}
+
 void D_DoomLoop (void)
 {
     if (demorecording)
 	G_BeginRecording ();
-		
+
     if (M_CheckParm ("-debugfile"))
     {
 	char    filename[20];
@@ -363,47 +411,18 @@ void D_DoomLoop (void)
 	printf ("debug output to: %s\n",filename);
 	debugfile = fopen (filename,"w");
     }
-	
+
     I_InitGraphics ();
 
+#ifdef __EMSCRIPTEN__
+    // Let the browser drive the frame loop
+    emscripten_set_main_loop(D_DoomFrame, 0, 1);
+#else
     while (1)
     {
-	// frame syncronous IO operations
-	I_StartFrame ();                
-	
-	// process one or more tics
-	if (singletics)
-	{
-	    I_StartTic ();
-	    D_ProcessEvents ();
-	    G_BuildTiccmd (&netcmds[consoleplayer][maketic%BACKUPTICS]);
-	    if (advancedemo)
-		D_DoAdvanceDemo ();
-	    M_Ticker ();
-	    G_Ticker ();
-	    gametic++;
-	    maketic++;
-	}
-	else
-	{
-	    TryRunTics (); // will run at least one tic
-	}
-		
-	S_UpdateSounds (players[consoleplayer].mo);// move positional sounds
-
-	// Update display, next frame, with current state.
-	D_Display ();
-
-#ifndef SNDSERV
-	// Sound mixing for the buffer is snychronous.
-	I_UpdateSound();
-#endif	
-	// Synchronous sound output is explicitly called.
-#ifndef SNDINTR
-	// Update sound output.
-	I_SubmitSound();
-#endif
+	D_DoomFrame();
     }
+#endif
 }
 
 
@@ -610,7 +629,11 @@ void IdentifyVersion (void)
 
     home = getenv("HOME");
     if (!home)
+#ifdef __EMSCRIPTEN__
+      home = "/home/web_user";
+#else
       I_Error("Please set $HOME to your home directory");
+#endif
     sprintf(basedefault, "%s/.doomrc", home);
 #endif
 
@@ -1057,7 +1080,9 @@ void D_DoomMain (void)
 	    "                      press enter to continue\n"
 	    "===========================================================================\n"
 	    );
+#ifndef __EMSCRIPTEN__
 	getchar ();
+#endif
     }
 	
 

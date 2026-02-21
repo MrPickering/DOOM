@@ -1,0 +1,110 @@
+################################################################
+#
+# Makefile.web — Emscripten build for DOOM mobile/web port
+#
+# Usage:
+#   emmake make -f Makefile.web
+#
+# Prerequisites:
+#   Emscripten SDK (emcc on PATH)
+#
+# Output:
+#   web/doom.js, web/doom.wasm, web/doom.html
+#
+################################################################
+
+CC = emcc
+
+CFLAGS = -O2 -DNORMALUNIX -s USE_SDL=2
+LDFLAGS = -s USE_SDL=2 \
+          -s ALLOW_MEMORY_GROWTH=1 \
+          -s TOTAL_MEMORY=33554432 \
+          -s EXPORTED_RUNTIME_METHODS='["ccall","cwrap","FS"]' \
+          -s EXPORTED_FUNCTIONS='["_main","_doom_key_down","_doom_key_up"]' \
+          -s NO_EXIT_RUNTIME=1 \
+          -s ASYNCIFY=0 \
+          --shell-file doom-shell.html \
+          -lidbfs.js
+
+O = web
+
+# All object files — using SDL video, stub sound, stub net
+OBJS =	\
+		$(O)/doomdef.o		\
+		$(O)/doomstat.o		\
+		$(O)/dstrings.o		\
+		$(O)/i_system.o		\
+		$(O)/i_sound_stub.o	\
+		$(O)/i_video_sdl.o	\
+		$(O)/i_net_stub.o	\
+		$(O)/tables.o		\
+		$(O)/f_finale.o		\
+		$(O)/f_wipe.o		\
+		$(O)/d_main.o		\
+		$(O)/d_net.o		\
+		$(O)/d_items.o		\
+		$(O)/g_game.o		\
+		$(O)/m_menu.o		\
+		$(O)/m_misc.o		\
+		$(O)/m_argv.o		\
+		$(O)/m_bbox.o		\
+		$(O)/m_fixed.o		\
+		$(O)/m_swap.o		\
+		$(O)/m_cheat.o		\
+		$(O)/m_random.o		\
+		$(O)/am_map.o		\
+		$(O)/p_ceilng.o		\
+		$(O)/p_doors.o		\
+		$(O)/p_enemy.o		\
+		$(O)/p_floor.o		\
+		$(O)/p_inter.o		\
+		$(O)/p_lights.o		\
+		$(O)/p_map.o		\
+		$(O)/p_maputl.o		\
+		$(O)/p_plats.o		\
+		$(O)/p_pspr.o		\
+		$(O)/p_setup.o		\
+		$(O)/p_sight.o		\
+		$(O)/p_spec.o		\
+		$(O)/p_switch.o		\
+		$(O)/p_mobj.o		\
+		$(O)/p_telept.o		\
+		$(O)/p_tick.o		\
+		$(O)/p_saveg.o		\
+		$(O)/p_user.o		\
+		$(O)/r_bsp.o		\
+		$(O)/r_data.o		\
+		$(O)/r_draw.o		\
+		$(O)/r_main.o		\
+		$(O)/r_plane.o		\
+		$(O)/r_segs.o		\
+		$(O)/r_sky.o		\
+		$(O)/r_things.o		\
+		$(O)/w_wad.o		\
+		$(O)/wi_stuff.o		\
+		$(O)/v_video.o		\
+		$(O)/st_lib.o		\
+		$(O)/st_stuff.o		\
+		$(O)/hu_stuff.o		\
+		$(O)/hu_lib.o		\
+		$(O)/s_sound.o		\
+		$(O)/z_zone.o		\
+		$(O)/info.o		\
+		$(O)/sounds.o
+
+all: $(O) $(O)/index.html
+
+$(O):
+	mkdir -p $(O)
+
+$(O)/index.html: $(OBJS) $(O)/i_main.o
+	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(O)/i_main.o \
+	-o $(O)/index.html
+
+clean:
+	rm -rf $(O)
+
+$(O)/%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+.PHONY: all clean
